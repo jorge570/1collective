@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "knJ_nmnBoh22-qV9Nc5Bl"
+uri = "file://src/assets/hero-electrician.png"
+type = "image"
+title = "Hero image of electrician"
+
+[[generated]]
+id = "PdwS9-_Ff5dT_EqeB0qIa"
+uri = "file://src/assets/phone-hands.png"
+type = "image"
+title = "Hands holding phone on site"
+
+[[generated]]
+id = "JmMH8uJqGfUMLA7XkD74W"
+uri = "file://src/assets/tools-tailgate.png"
+type = "image"
+title = "Tools on a truck tailgate"
