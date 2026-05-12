@@ -55,7 +55,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Authenticated: the per-route role enforcement happens in layouts (uses service-role lookup).
-  // Middleware just blocks obvious cross-gate access:
+  // Proxy just blocks obvious cross-gate access:
   //   - tenant users hitting /admin → bounce
   //   - logged-in users hitting /login → bounce to /app
   if (isAuthPath) {
