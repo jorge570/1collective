@@ -23,7 +23,7 @@ Configured as Replit Autoscale deployment:
 
 ## Source of truth
 
-GitHub: https://github.com/jorge570/1collective
+GitHub: https://github.com/1-Collective/1collective
 
 The working loop: Claude Code edits locally → push to GitHub → Replit pulls. Or: Replit Agent edits → push to GitHub → pull down in Claude Code.
 

@@ -73,7 +73,7 @@ See `db/README.md` for details.
 
 ## Source of truth
 
-GitHub: https://github.com/jorge570/1collective
+GitHub: https://github.com/1-Collective/1collective
 
 ## Code style
 
