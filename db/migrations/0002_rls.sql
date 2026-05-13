@@ -130,7 +130,7 @@ declare
   tenant_isolated text[] := array[
     'tenant_locations', 'tenant_service_areas',
     'user_tenant_memberships',
-    'roles', 'role_permissions', 'user_role_assignments',
+    'roles', 'user_role_assignments',
     'onboarding_progress', 'onboarding_contract_ingestion', 'setup_tasks',
     'brand_content', 'brand_content_versions',
     'companies', 'contacts',
@@ -168,6 +168,37 @@ begin
     $p$, t);
   end loop;
 end$$;
+
+-- ============================================================
+-- ROLE_PERMISSIONS: no direct tenant_id; isolate by joining through roles
+-- ============================================================
+
+create policy role_permissions_select on role_permissions
+  for select using (
+    is_platform_operator()
+    or exists (
+      select 1 from roles r
+      where r.id = role_permissions.role_id
+        and (r.tenant_id = current_tenant_id() or r.tenant_id is null)
+    )
+  );
+create policy role_permissions_modify on role_permissions
+  for all using (
+    is_platform_operator()
+    or exists (
+      select 1 from roles r
+      where r.id = role_permissions.role_id
+        and r.tenant_id = current_tenant_id()
+    )
+  )
+  with check (
+    is_platform_operator()
+    or exists (
+      select 1 from roles r
+      where r.id = role_permissions.role_id
+        and r.tenant_id = current_tenant_id()
+    )
+  );
 
 -- ============================================================
 -- TENANTS table: users see only their own tenant rows
