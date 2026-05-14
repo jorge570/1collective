@@ -7,6 +7,7 @@
 export type FoundationalModuleKey =
   | "vault"
   | "integrations_oauth"
+  | "cron"
   | "ai_core"
   | "ai_phone_daniella"
   | "ai_phone_serana"
@@ -37,6 +38,14 @@ export const FOUNDATIONAL_MODULES: Record<FoundationalModuleKey, FoundationalMod
     source: "new",
     requiredCredentials: ["INTEGRATION_TOKEN_ENCRYPTION_KEY"],
     notes: "Encrypted-at-rest store for tenant OAuth tokens (QBO, Google, Meta, Vapi).",
+  },
+  cron: {
+    key: "cron",
+    name: "Cron dispatcher",
+    enabled: true,
+    source: "new",
+    requiredCredentials: ["CRON_SHARED_SECRET"],
+    notes: "Scheduled job runner with audit trail (cc_cron_runs) and per-slot idempotency. Schedules configured in the deployment platform; jobs registered in src/lib/cron/jobs.ts.",
   },
   vault: {
     key: "vault",

@@ -11,7 +11,7 @@ const PUBLIC_PATHS = [
   "/sitemap.xml",
   "/robots.txt",
 ];
-const STATIC_PREFIXES = ["/_next", "/api/webhooks", "/favicon"];
+const STATIC_PREFIXES = ["/_next", "/api/webhooks", "/api/cron", "/favicon"];
 
 function isDevApiAllowed(): boolean {
   return (
