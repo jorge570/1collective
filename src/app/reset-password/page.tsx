@@ -5,45 +5,59 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { loginAction } from "./actions";
+import { resetPasswordAction } from "./actions";
 
-export default async function LoginPage({
+export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; error?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const sp = await searchParams;
+
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
-  if (data.user) redirect(sp.next || "/app");
+  if (!data.user) {
+    redirect(
+      `/forgot-password?error=${encodeURIComponent(
+        "Reset link expired or invalid. Request a new one."
+      )}`
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Sign in to One Collective</CardTitle>
-          <CardDescription>Use your work email.</CardDescription>
+          <CardTitle>Choose a new password</CardTitle>
+          <CardDescription>
+            Signed in as <strong>{data.user.email}</strong>. Set a new password
+            below to finish.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={loginAction} className="space-y-4">
-            <input type="hidden" name="next" value={sp.next || "/app"} />
+          <form action={resetPasswordAction} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">New password</Label>
               <Input
                 id="password"
                 name="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+              <p className="text-xs text-[var(--color-muted-foreground)]">
+                At least 8 characters.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm">Confirm new password</Label>
+              <Input
+                id="confirm"
+                name="confirm"
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
                 required
               />
             </div>
@@ -53,21 +67,12 @@ export default async function LoginPage({
               </p>
             )}
             <Button type="submit" className="w-full">
-              Sign in
+              Update password
             </Button>
-            <div className="text-right">
-              <Link
-                href="/forgot-password"
-                className="text-xs text-[var(--color-muted-foreground)] underline"
-              >
-                Forgot password?
-              </Link>
-            </div>
           </form>
           <p className="mt-6 text-center text-xs text-[var(--color-muted-foreground)]">
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" className="underline">
-              Create a workspace
+            <Link href="/login" className="underline">
+              Cancel and return to sign in
             </Link>
           </p>
         </CardContent>

@@ -1,13 +1,19 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plug, User, Palette, Bell, KeyRound } from "lucide-react";
+import { Plug, User, Palette, Bell, KeyRound, Lock } from "lucide-react";
 
 const SETTINGS_SECTIONS = [
   {
-    href: "/app/settings/connectors",
+    href: "/app/settings/account",
+    icon: Lock,
+    title: "Account & password",
+    description: "Change your password or sign-in email.",
+  },
+  {
+    href: "/app/integrations",
     icon: Plug,
-    title: "Connectors",
-    description: "Google Workspace, Gmail, Drive, QuickBooks, Twilio.",
+    title: "Integrations",
+    description: "Google, QuickBooks, Twilio, Vapi, Meta — credentials and connection status.",
   },
   {
     href: "/app/branding",
@@ -30,7 +36,7 @@ const SETTINGS_SECTIONS = [
   {
     href: "#",
     icon: KeyRound,
-    title: "API & integrations",
+    title: "API keys",
     description: "Coming soon.",
   },
 ];

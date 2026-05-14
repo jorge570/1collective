@@ -5,37 +5,40 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { loginAction } from "./actions";
+import { signupAction } from "./actions";
 
-export default async function LoginPage({
+export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; error?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
-  if (data.user) redirect(sp.next || "/app");
+  if (data.user) redirect("/app");
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Sign in to One Collective</CardTitle>
-          <CardDescription>Use your work email.</CardDescription>
+          <CardTitle>Create your One Collective workspace</CardTitle>
+          <CardDescription>
+            Start with a 14-day free trial. No credit card required.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={loginAction} className="space-y-4">
-            <input type="hidden" name="next" value={sp.next || "/app"} />
+          <form action={signupAction} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-              />
+              <Label htmlFor="company_name">Company name</Label>
+              <Input id="company_name" name="company_name" type="text" required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="full_name">Your name</Label>
+              <Input id="full_name" name="full_name" type="text" autoComplete="name" required />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Work email</Label>
+              <Input id="email" name="email" type="email" autoComplete="email" required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="password">Password</Label>
@@ -43,9 +46,13 @@ export default async function LoginPage({
                 id="password"
                 name="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete="new-password"
+                minLength={8}
                 required
               />
+              <p className="text-xs text-[var(--color-muted-foreground)]">
+                At least 8 characters.
+              </p>
             </div>
             {sp.error && (
               <p className="text-sm text-[var(--color-destructive)]">
@@ -53,21 +60,13 @@ export default async function LoginPage({
               </p>
             )}
             <Button type="submit" className="w-full">
-              Sign in
+              Create workspace
             </Button>
-            <div className="text-right">
-              <Link
-                href="/forgot-password"
-                className="text-xs text-[var(--color-muted-foreground)] underline"
-              >
-                Forgot password?
-              </Link>
-            </div>
           </form>
           <p className="mt-6 text-center text-xs text-[var(--color-muted-foreground)]">
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" className="underline">
-              Create a workspace
+            Already have an account?{" "}
+            <Link href="/login" className="underline">
+              Sign in
             </Link>
           </p>
         </CardContent>

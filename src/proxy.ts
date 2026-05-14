@@ -1,7 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/", "/login", "/signup", "/admin/login"];
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/signup",
+  "/admin/login",
+  "/forgot-password",
+  "/reset-password",
+  "/auth/callback",
+];
 const STATIC_PREFIXES = ["/_next", "/api/webhooks", "/favicon"];
 
 export async function proxy(request: NextRequest) {
