@@ -17,6 +17,8 @@ const STATIC_PREFIXES = [
   "/api/cron",
   "/api/sign",
   "/sign/",
+  "/api/pay",
+  "/pay/",
   "/favicon",
 ];
 

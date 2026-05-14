@@ -5,6 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { differenceInDays } from "date-fns";
+import { createPortalSession } from "@/lib/billing/actions";
+
+async function openPortalForm(): Promise<void> {
+  "use server";
+  const r = await createPortalSession();
+  if (!r.ok) throw new Error(r.error);
+}
 
 export default async function BillingPage() {
   const session = await requireTenantUser();
@@ -96,9 +103,11 @@ export default async function BillingPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {billing?.stripe_customer_id ? (
-              <Button variant="outline" disabled>
-                Manage in Stripe Customer Portal
-              </Button>
+              <form action={openPortalForm}>
+                <Button type="submit" variant="outline">
+                  Manage in Stripe Customer Portal
+                </Button>
+              </form>
             ) : (
               <Button disabled>Add credit card (Stripe wiring coming next)</Button>
             )}

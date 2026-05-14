@@ -19,6 +19,13 @@ import {
   setInvoiceStatus,
   updateInvoice,
 } from "@/lib/invoicing/actions";
+import { issueInvoicePayLink } from "@/lib/invoicing/stripe";
+
+async function issuePayLinkForm(formData: FormData): Promise<void> {
+  "use server";
+  const r = await issueInvoicePayLink(formData);
+  if (!r.ok) throw new Error(r.error);
+}
 
 async function addLineItemForm(formData: FormData): Promise<void> {
   "use server";
@@ -382,6 +389,26 @@ export default async function InvoiceDetailPage({
               ))}
             </CardContent>
           </Card>
+
+          {balanceCents > 0 && invoice.status !== "draft" && invoice.status !== "void" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Online payment</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-xs text-[var(--color-muted-foreground)]">
+                  Generates a public Stripe Checkout link for the customer.
+                  Reuses an active link if one exists.
+                </p>
+                <form action={issuePayLinkForm}>
+                  <input type="hidden" name="invoice_id" value={invoice.id} />
+                  <Button type="submit" size="sm" variant="outline" className="w-full">
+                    Generate pay link
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>

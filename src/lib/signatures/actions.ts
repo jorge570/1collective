@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireTenantUser } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isModuleEnabled } from "@/foundational/registry";
+import { publicBaseUrl } from "@/lib/url";
 import { actionError, actionOk, parseForm, type ActionResult } from "@/lib/validation";
 import { log } from "@/lib/log";
 import { sendEmail } from "@/lib/email";
@@ -22,14 +23,6 @@ function ensureEnabled() {
   if (!isModuleEnabled("e_signature")) {
     throw new Error("E-signature module is disabled");
   }
-}
-
-function publicBaseUrl(): string {
-  const explicit = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
-  if (explicit) return explicit;
-  const replit = process.env.REPLIT_DEV_DOMAIN;
-  if (replit) return `https://${replit}`;
-  return "http://localhost:5000";
 }
 
 function newToken(): string {

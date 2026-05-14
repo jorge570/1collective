@@ -192,6 +192,27 @@ single-use tokens; signature row immutable after write.
 **Risk**: webhook idempotency, partial payments, refunds. Use Stripe event
 ID as idempotency key in `stripe_events` table.
 
+**Sprint 1 status (2026-05-14)** — Phase 3 backend is shipped behind the
+Stripe credentials gate (row 4 of `PRE_PUBLISH_BLOCKERS.md`):
+- Migration `0018_billing_automation.sql` adds `cc_recurring_invoice_schedules`,
+  `cc_invoice_payment_links`, `cc_invoice_reminders`, plus
+  `stripe_payment_intent_id` / `stripe_checkout_session_id` on `cc_invoices`.
+- `src/lib/billing/actions.ts::createPortalSession` redirects tenants to the
+  Stripe Customer Portal; missing-credential path returns a friendly error.
+- `src/lib/invoicing/stripe.ts::issueInvoicePayLink` issues a tokenized public
+  pay link; `/pay/[token]` renders the summary and `/api/pay/[token]/checkout`
+  opens a Stripe Checkout Session. Webhook handler reconciles
+  `checkout.session.completed` and `payment_intent.succeeded` idempotently via
+  `cc_record_invoice_payment`.
+- `src/lib/invoicing/recurring.ts::materializeDueSchedules` runs daily under
+  the `recurring_invoices_daily` cron; pure helpers live in
+  `src/lib/invoicing/frequencies.ts` for testability.
+- `src/lib/invoicing/overdue.ts::scanOverdueInvoices` runs daily under
+  `invoice_overdue_daily`, transitions `sent → overdue`, and writes
+  `cc_invoice_reminders` rows (best-effort email send).
+- Live verification still depends on real Stripe keys; everything else is
+  unit-tested green (lint, typecheck, vitest, build).
+
 ### Phase 4 — Construction-billing differentiator
 
 This is the wedge that distinguishes 1collective from a generic invoicing app.

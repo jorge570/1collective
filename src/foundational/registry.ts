@@ -156,7 +156,7 @@ export const FOUNDATIONAL_MODULES: Record<FoundationalModuleKey, FoundationalMod
     enabled: true,
     source: "cc",
     requiredCredentials: [],
-    notes: "Per-tenant invoice numbering (INV-YYYY-NNNN), line items with tax, payment recording (manual today; Stripe wires up in Phase 3.2), branded PDF, convert from accepted estimate.",
+    notes: "Per-tenant invoice numbering (INV-YYYY-NNNN), line items with tax, manual + Stripe payment recording (Checkout pay links via /pay/[token], webhook reconciliation, idempotent), branded PDF, convert from accepted estimate, recurring schedules (cron: recurring_invoices_daily) and overdue/late-payment reminders (cron: invoice_overdue_daily). Customer Portal action lives in src/lib/billing/actions.ts.",
   },
   e_signature: {
     key: "e_signature",
