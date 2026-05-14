@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { loginAction } from "./actions";
+import { devLoginAction, loginAction } from "./actions";
+import { DEV_LOGIN_EMAIL, isDevLoginEnabled } from "./dev-config";
 
 export default async function LoginPage({
   searchParams,
@@ -64,6 +65,18 @@ export default async function LoginPage({
               </Link>
             </div>
           </form>
+
+          {isDevLoginEnabled() && (
+            <form action={devLoginAction} className="mt-6 space-y-2 border-t pt-4">
+              <input type="hidden" name="next" value={sp.next || "/app"} />
+              <Button type="submit" variant="outline" className="w-full">
+                Sign in as developer
+              </Button>
+              <p className="text-center text-xs text-[var(--color-muted-foreground)]">
+                Dev-only shortcut. Signs in as {DEV_LOGIN_EMAIL}. Disabled in production.
+              </p>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -46,6 +46,9 @@ run = ["npm", "run", "start"]
 NEXT_PUBLIC_SUPABASE_URL = "https://xtkzughzlzrlggohhxbq.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0a3p1Z2h6bHpybGdnb2hoeGJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NzU4OTEsImV4cCI6MjA5NDA1MTg5MX0.CtJrsBftU5Qew5R4jQvcwhayiPI4llDPK6NMP0zouHc"
 
+[userenv.development]
+ENABLE_DEV_LOGIN = "1"
+
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 120000
