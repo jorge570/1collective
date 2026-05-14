@@ -11,7 +11,7 @@ async function siteOrigin(): Promise<string> {
   const host = h.get("x-forwarded-host") ?? h.get("host");
   const proto = h.get("x-forwarded-proto") ?? "https";
   if (host) return `${proto}://${host}`;
-  return process.env.NEXT_PUBLIC_SITE_URL ?? "https://1-collective.replit.app";
+  return process.env.NEXT_PUBLIC_APP_URL ?? "https://1-collective.replit.app";
 }
 
 export async function changePasswordAction(formData: FormData) {
