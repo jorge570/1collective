@@ -18,10 +18,17 @@ import {
   setEstimateStatus,
   updateEstimate,
 } from "@/lib/estimating/actions";
+import { addLineItemFromCatalog } from "@/lib/estimating/catalog-actions";
 
 async function addLineItemForm(formData: FormData): Promise<void> {
   "use server";
   const r = await addLineItem(formData);
+  if (!r.ok) throw new Error(r.error);
+}
+
+async function addLineItemFromCatalogForm(formData: FormData): Promise<void> {
+  "use server";
+  const r = await addLineItemFromCatalog(formData);
   if (!r.ok) throw new Error(r.error);
 }
 
@@ -78,7 +85,7 @@ export default async function EstimateDetailPage({
 
   if (!estimate || estimate.tenant_id !== session.tenantId) notFound();
 
-  const [{ data: items }, { data: companies }] = await Promise.all([
+  const [{ data: items }, { data: companies }, { data: catalog }] = await Promise.all([
     admin
       .from("cc_estimate_line_items")
       .select("id, position, description, quantity, unit, unit_price_cents, total_cents")
@@ -91,9 +98,16 @@ export default async function EstimateDetailPage({
       .eq("tenant_id", session.tenantId)
       .is("deleted_at", null)
       .order("name"),
+    admin
+      .from("cc_estimate_catalog_items")
+      .select("id, name, unit, default_price_cents, category")
+      .eq("tenant_id", session.tenantId)
+      .eq("is_active", true)
+      .order("name", { ascending: true }),
   ]);
 
   const lineItems = items ?? [];
+  const catalogItems = catalog ?? [];
   const taxRatePercent = estimate.tax_rate_bps / 100;
 
   return (
@@ -172,6 +186,41 @@ export default async function EstimateDetailPage({
                   </table>
                 </div>
               )}
+
+              {catalogItems.length > 0 ? (
+                <form
+                  action={addLineItemFromCatalogForm}
+                  className="grid grid-cols-12 gap-2 border-t border-[var(--color-border)]/60 pt-3"
+                >
+                  <input type="hidden" name="estimate_id" value={estimate.id} />
+                  <select
+                    name="catalog_item_id"
+                    required
+                    className="col-span-7 rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+                  >
+                    <option value="">Add from catalog…</option>
+                    {catalogItems.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.category ? `[${c.category}] ` : ""}
+                        {c.name} ({c.unit}, ${(Number(c.default_price_cents) / 100).toFixed(2)})
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    name="quantity"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    defaultValue="1"
+                    placeholder="Qty"
+                    className="col-span-3 rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+                  />
+                  <Button type="submit" className="col-span-2" size="sm" variant="outline">
+                    Add from catalog
+                  </Button>
+                </form>
+              ) : null}
 
               <form action={addLineItemForm} className="grid grid-cols-12 gap-2 pt-3">
                 <input type="hidden" name="estimate_id" value={estimate.id} />

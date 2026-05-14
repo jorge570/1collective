@@ -73,9 +73,14 @@ export default async function EstimatingPage() {
             Build estimates with itemized line items, send branded PDFs, and track wins.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/app/estimating/new">New estimate</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/app/estimating/catalog">Manage catalog</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/app/estimating/new">New estimate</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
