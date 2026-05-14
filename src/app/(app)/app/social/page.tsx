@@ -1,13 +1,24 @@
+import type { Metadata } from "next";
 import { requireTenantUser } from "@/lib/auth/session";
-import { ModuleStatus } from "@/components/app-shell/module-status";
+import { ModuleShellPreview } from "@/components/app-shell/module-shell-preview";
+
+export const metadata: Metadata = { title: "Social" };
 
 export default async function SocialPage() {
   await requireTenantUser();
   return (
-    <ModuleStatus
-      kind="coming_soon"
+    <ModuleShellPreview
       title="Social"
-      description="Compose and schedule posts across Facebook, Instagram, and Google Business Profile. Amber AI assistance lights up automatically once the AI core is configured."
+      description="Schedule posts to Facebook, Instagram, and LinkedIn from one queue. Auto-promote completed jobs as case studies."
+      primaryActionLabel="Compose post"
+      stats={[
+        { label: "Scheduled", value: "0" },
+        { label: "Published (30d)", value: "0" },
+        { label: "Connected accounts", value: "0" },
+        { label: "Engagement (30d)", value: "—" },
+      ]}
+      emptyTitle="Nothing scheduled"
+      emptyHint="Connect a social account and queue your first post once Social is enabled."
     />
   );
 }

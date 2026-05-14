@@ -32,7 +32,7 @@ export default async function OnboardingStepPage({
     .eq("id", session.tenantId)
     .single();
 
-  const { data: progress } = await admin
+  await admin
     .from("onboarding_progress")
     .select("step_state, completed_steps")
     .eq("tenant_id", session.tenantId)

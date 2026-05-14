@@ -8,6 +8,8 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/auth/callback",
+  "/sitemap.xml",
+  "/robots.txt",
 ];
 const STATIC_PREFIXES = ["/_next", "/api/webhooks", "/favicon"];
 

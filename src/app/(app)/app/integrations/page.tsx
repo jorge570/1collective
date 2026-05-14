@@ -25,15 +25,15 @@ export default async function IntegrationsPage() {
 
       <div className="mt-6 grid gap-3 lg:grid-cols-2">
         {VISIBLE.map((key) => {
-          const module = FOUNDATIONAL_MODULES[key];
+          const mod = FOUNDATIONAL_MODULES[key];
           const missing = missingCredentialsFor(key);
-          const ready = missing.length === 0 && module.requiredCredentials.length > 0;
-          const isOptional = module.requiredCredentials.length === 0;
+          const ready = missing.length === 0 && mod.requiredCredentials.length > 0;
+          const isOptional = mod.requiredCredentials.length === 0;
           return (
             <Card key={key}>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{module.name}</CardTitle>
+                  <CardTitle className="text-base">{mod.name}</CardTitle>
                   {isOptional ? (
                     <Badge variant="secondary">No credentials</Badge>
                   ) : ready ? (
@@ -42,7 +42,7 @@ export default async function IntegrationsPage() {
                     <Badge variant="destructive">Setup required</Badge>
                   )}
                 </div>
-                {module.notes && <CardDescription>{module.notes}</CardDescription>}
+                {mod.notes && <CardDescription>{mod.notes}</CardDescription>}
               </CardHeader>
               {missing.length > 0 && (
                 <CardContent>

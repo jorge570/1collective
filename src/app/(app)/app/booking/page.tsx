@@ -1,13 +1,24 @@
+import type { Metadata } from "next";
 import { requireTenantUser } from "@/lib/auth/session";
-import { ModuleStatus } from "@/components/app-shell/module-status";
+import { ModuleShellPreview } from "@/components/app-shell/module-shell-preview";
+
+export const metadata: Metadata = { title: "Booking" };
 
 export default async function BookingPage() {
   await requireTenantUser();
   return (
-    <ModuleStatus
-      kind="coming_soon"
+    <ModuleShellPreview
       title="Booking"
-      description="Public booking widget for your website plus the inbound submissions inbox. Honors Google Calendar availability when the Google integration is connected."
+      description="Public booking widget plus inbound submissions inbox. Honors Google Calendar availability when the Google integration is connected."
+      primaryActionLabel="Configure widget"
+      stats={[
+        { label: "Bookings (7d)", value: "0" },
+        { label: "Pending review", value: "0" },
+        { label: "Conversion", value: "—", helper: "Widget views → bookings" },
+        { label: "No-shows (30d)", value: "0" },
+      ]}
+      emptyTitle="No bookings received"
+      emptyHint="Once your booking widget is live on your website, submissions will land here."
     />
   );
 }

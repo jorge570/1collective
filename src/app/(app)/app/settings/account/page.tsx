@@ -44,7 +44,7 @@ export default async function AccountSettingsPage({
           <CardHeader>
             <CardTitle className="text-base">Change password</CardTitle>
             <CardDescription>
-              You'll need to enter your current password to confirm.
+              You&apos;ll need to enter your current password to confirm.
             </CardDescription>
           </CardHeader>
           <CardContent>
