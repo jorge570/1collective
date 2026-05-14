@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { Sidebar, type NavItem } from "@/components/app-shell/sidebar";
+import { ImpersonationBanner } from "@/components/app-shell/impersonation-banner";
 import {
   LayoutDashboard,
   Building2,
@@ -7,6 +9,7 @@ import {
   ListChecks,
   BookOpen,
   Folders,
+  UsersRound,
   LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +18,7 @@ const ICON = "h-4 w-4";
 const NAV: NavItem[] = [
   { label: "Overview", href: "/admin", icon: <LayoutDashboard className={ICON} /> },
   { label: "Tenants", href: "/admin/tenants", icon: <Building2 className={ICON} /> },
+  { label: "Employees", href: "/admin/employees", icon: <UsersRound className={ICON} /> },
   { label: "Invite links", href: "/admin/invite-links", icon: <TicketIcon className={ICON} /> },
   { label: "Contract checklist", href: "/admin/checklist", icon: <ListChecks className={ICON} /> },
   { label: "Clause library", href: "/admin/clauses", icon: <BookOpen className={ICON} /> },
@@ -33,6 +37,7 @@ export default async function AdminLayout({
   if (session.kind !== "platform_operator") {
     return <>{children}</>;
   }
+  if (session.passwordResetRequired) redirect("/set-password");
 
   return (
     <div className="flex min-h-screen">
@@ -60,7 +65,10 @@ export default async function AdminLayout({
           </div>
         }
       />
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <main className="flex-1 overflow-y-auto">
+        <ImpersonationBanner />
+        {children}
+      </main>
     </div>
   );
 }

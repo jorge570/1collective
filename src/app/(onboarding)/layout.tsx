@@ -10,6 +10,7 @@ export default async function OnboardingLayout({
 }) {
   const session = await getSession();
   if (session.kind !== "tenant_user") redirect("/login");
+  if (session.passwordResetRequired) redirect("/set-password");
   if (session.onboardingComplete) redirect("/app");
 
   return (
