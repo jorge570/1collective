@@ -7,6 +7,8 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
+import ws from "ws";
+if (!globalThis.WebSocket) globalThis.WebSocket = ws;
 
 const [, , emailArg, passwordArg, companyArg] = process.argv;
 const email = (emailArg || "dev@1collective.local").toLowerCase();
