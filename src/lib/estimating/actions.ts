@@ -378,3 +378,130 @@ export async function downloadEstimatePdf(formData: FormData): Promise<void> {
 
   redirect(signed.signedUrl);
 }
+
+import { convertEstimateToInvoiceSchema } from "@/lib/invoicing/schemas";
+import { nextInvoiceNumber } from "@/lib/invoicing/numbering";
+
+export async function convertEstimateToInvoice(
+  formData: FormData
+): Promise<ActionResult<{ invoice_id: string }>> {
+  ensureEnabled();
+  if (!isModuleEnabled("invoicing")) {
+    return actionError("Invoicing module is disabled.");
+  }
+  const session = await requireTenantUser();
+
+  const parsed = parseForm(convertEstimateToInvoiceSchema, formData);
+  if (!parsed.ok) return parsed;
+
+  const admin = createAdminClient();
+  const { data: estimate } = await admin
+    .from("cc_estimates")
+    .select(
+      "id, tenant_id, title, status, company_id, project_id, subtotal_cents, tax_rate_bps, tax_cents, total_cents, notes, terms"
+    )
+    .eq("id", parsed.data.estimate_id)
+    .eq("tenant_id", session.tenantId)
+    .maybeSingle();
+  if (!estimate) return actionError("Estimate not found.");
+  if (estimate.status !== "accepted") {
+    return actionError("Only accepted estimates can be converted to an invoice.");
+  }
+
+  const { data: existing } = await admin
+    .from("cc_invoices")
+    .select("id")
+    .eq("tenant_id", session.tenantId)
+    .eq("source_estimate_id", estimate.id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (existing) {
+    return actionError("This estimate has already been converted to an invoice.");
+  }
+
+  const { data: items, error: liErr } = await admin
+    .from("cc_estimate_line_items")
+    .select("position, description, quantity, unit, unit_price_cents, total_cents")
+    .eq("estimate_id", estimate.id)
+    .eq("tenant_id", session.tenantId)
+    .order("position", { ascending: true });
+  if (liErr) return actionError("Could not load line items.");
+
+  let invoiceId = "";
+  let allocated = false;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const invoiceNumber = await nextInvoiceNumber(admin, session.tenantId);
+    const id = crypto.randomUUID();
+    const { error } = await admin.from("cc_invoices").insert({
+      id,
+      tenant_id: session.tenantId,
+      invoice_number: invoiceNumber,
+      title: estimate.title,
+      company_id: estimate.company_id,
+      project_id: estimate.project_id,
+      source_estimate_id: estimate.id,
+      status: "draft",
+      subtotal_cents: estimate.subtotal_cents,
+      tax_rate_bps: estimate.tax_rate_bps,
+      tax_cents: estimate.tax_cents,
+      total_cents: estimate.total_cents,
+      due_date: parsed.data.due_date,
+      notes: estimate.notes,
+      terms: estimate.terms,
+      created_by: session.userId,
+    });
+    if (!error) {
+      invoiceId = id;
+      allocated = true;
+      log.info("estimate.convert.success", {
+        tenant_id: session.tenantId,
+        estimate_id: estimate.id,
+        invoice_id: id,
+        invoice_number: invoiceNumber,
+      });
+      break;
+    }
+    if (error.code === "23505") {
+      const detail = `${error.message} ${"details" in error ? (error as { details?: string }).details ?? "" : ""}`;
+      if (detail.includes("source_estimate")) {
+        return actionError("This estimate has already been converted to an invoice.");
+      }
+      continue;
+    }
+    log.error("estimate.convert.failed", {
+      tenant_id: session.tenantId,
+      estimate_id: estimate.id,
+      err: error.message,
+    });
+    return actionError("Could not create invoice from estimate.");
+  }
+  if (!allocated) {
+    return actionError("Could not allocate an invoice number. Please try again.");
+  }
+
+  if ((items ?? []).length > 0) {
+    const rows = (items ?? []).map((li) => ({
+      invoice_id: invoiceId,
+      tenant_id: session.tenantId,
+      position: li.position,
+      description: li.description,
+      quantity: li.quantity,
+      unit: li.unit,
+      unit_price_cents: li.unit_price_cents,
+      total_cents: li.total_cents,
+    }));
+    const { error: insErr } = await admin.from("cc_invoice_line_items").insert(rows);
+    if (insErr) {
+      await admin
+        .from("cc_invoices")
+        .delete()
+        .eq("id", invoiceId)
+        .eq("tenant_id", session.tenantId);
+      return actionError("Could not copy line items to invoice.");
+    }
+  }
+
+  revalidatePath("/app/invoicing");
+  revalidatePath(`/app/estimating/${estimate.id}`);
+  return actionOk({ invoice_id: invoiceId });
+}

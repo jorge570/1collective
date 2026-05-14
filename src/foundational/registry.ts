@@ -125,14 +125,6 @@ export const FOUNDATIONAL_MODULES: Record<FoundationalModuleKey, FoundationalMod
     ],
     notes: "Two-way sync of customers, invoices, payments, items.",
   },
-  invoicing: {
-    key: "invoicing",
-    name: "Invoicing",
-    enabled: false,
-    source: "cc",
-    requiredCredentials: [],
-    notes: "Native invoice + payment models; QuickBooks sync surfaces inside this page.",
-  },
   projects: {
     key: "projects",
     name: "Projects (WIP / pipeline / change orders)",
@@ -155,7 +147,15 @@ export const FOUNDATIONAL_MODULES: Record<FoundationalModuleKey, FoundationalMod
     enabled: true,
     source: "cc",
     requiredCredentials: [],
-    notes: "Itemized estimates with line items, per-tenant numbering (EST-YYYY-NNNN), branded PDF download. Catalog UI and e-signature land in a later phase.",
+    notes: "Itemized estimates with line items, per-tenant numbering (EST-YYYY-NNNN), branded PDF download, reusable catalog. E-signature lands in a later phase.",
+  },
+  invoicing: {
+    key: "invoicing",
+    name: "Invoicing",
+    enabled: true,
+    source: "cc",
+    requiredCredentials: [],
+    notes: "Per-tenant invoice numbering (INV-YYYY-NNNN), line items with tax, payment recording (manual today; Stripe wires up in Phase 3.2), branded PDF, convert from accepted estimate.",
   },
   crm: {
     key: "crm",

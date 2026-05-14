@@ -11,48 +11,48 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { centsToDollars } from "@/lib/estimating/schemas";
 import {
-  addLineItem,
-  convertEstimateToInvoice,
-  deleteEstimate,
-  deleteLineItem,
-  downloadEstimatePdf,
-  setEstimateStatus,
-  updateEstimate,
-} from "@/lib/estimating/actions";
-import { addLineItemFromCatalog } from "@/lib/estimating/catalog-actions";
+  addInvoiceLineItem,
+  deleteInvoice,
+  deleteInvoiceLineItem,
+  downloadInvoicePdf,
+  recordInvoicePayment,
+  setInvoiceStatus,
+  updateInvoice,
+} from "@/lib/invoicing/actions";
 
 async function addLineItemForm(formData: FormData): Promise<void> {
   "use server";
-  const r = await addLineItem(formData);
+  const r = await addInvoiceLineItem(formData);
   if (!r.ok) throw new Error(r.error);
 }
 
-async function addLineItemFromCatalogForm(formData: FormData): Promise<void> {
+async function updateInvoiceForm(formData: FormData): Promise<void> {
   "use server";
-  const r = await addLineItemFromCatalog(formData);
+  const r = await updateInvoice(formData);
   if (!r.ok) throw new Error(r.error);
 }
 
-async function updateEstimateForm(formData: FormData): Promise<void> {
+async function setInvoiceStatusForm(formData: FormData): Promise<void> {
   "use server";
-  const r = await updateEstimate(formData);
+  const r = await setInvoiceStatus(formData);
   if (!r.ok) throw new Error(r.error);
 }
 
-async function setEstimateStatusForm(formData: FormData): Promise<void> {
+async function recordPaymentForm(formData: FormData): Promise<void> {
   "use server";
-  const r = await setEstimateStatus(formData);
+  const r = await recordInvoicePayment(formData);
   if (!r.ok) throw new Error(r.error);
 }
 
-export const metadata: Metadata = { title: "Estimate" };
+export const metadata: Metadata = { title: "Invoice" };
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   draft: "secondary",
   sent: "default",
-  accepted: "default",
-  declined: "destructive",
-  expired: "outline",
+  partial: "default",
+  paid: "default",
+  overdue: "destructive",
+  void: "outline",
 };
 
 function fmtMoney(cents: number): string {
@@ -62,36 +62,39 @@ function fmtMoney(cents: number): string {
   });
 }
 
-export default async function EstimateDetailPage({
+export default async function InvoiceDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const session = await requireTenantUser();
 
-  if (!isModuleEnabled("estimating")) {
-    return <ModuleStatus kind="coming_soon" title="Estimating" description="Module not yet enabled." />;
+  if (!isModuleEnabled("invoicing")) {
+    return (
+      <ModuleStatus kind="coming_soon" title="Invoicing" description="Module not yet enabled." />
+    );
   }
 
   const { id } = await params;
   const admin = createAdminClient();
 
-  const { data: estimate } = await admin
-    .from("cc_estimates")
+  const { data: invoice } = await admin
+    .from("cc_invoices")
     .select(
-      "id, tenant_id, estimate_number, title, status, company_id, project_id, subtotal_cents, tax_rate_bps, tax_cents, total_cents, valid_until, sent_at, accepted_at, declined_at, notes, terms, created_at"
+      "id, tenant_id, invoice_number, title, status, company_id, project_id, source_estimate_id, subtotal_cents, tax_rate_bps, tax_cents, total_cents, amount_paid_cents, due_date, sent_at, paid_at, voided_at, notes, terms, created_at"
     )
     .eq("id", id)
     .eq("tenant_id", session.tenantId)
+    .is("deleted_at", null)
     .maybeSingle();
 
-  if (!estimate) notFound();
+  if (!invoice) notFound();
 
-  const [{ data: items }, { data: companies }, { data: catalog }] = await Promise.all([
+  const [{ data: items }, { data: companies }] = await Promise.all([
     admin
-      .from("cc_estimate_line_items")
+      .from("cc_invoice_line_items")
       .select("id, position, description, quantity, unit, unit_price_cents, total_cents")
-      .eq("estimate_id", estimate.id)
+      .eq("invoice_id", invoice.id)
       .eq("tenant_id", session.tenantId)
       .order("position", { ascending: true }),
     admin
@@ -100,53 +103,44 @@ export default async function EstimateDetailPage({
       .eq("tenant_id", session.tenantId)
       .is("deleted_at", null)
       .order("name"),
-    admin
-      .from("cc_estimate_catalog_items")
-      .select("id, name, unit, default_price_cents, category")
-      .eq("tenant_id", session.tenantId)
-      .eq("is_active", true)
-      .order("name", { ascending: true }),
   ]);
 
   const lineItems = items ?? [];
-  const catalogItems = catalog ?? [];
-  const taxRatePercent = estimate.tax_rate_bps / 100;
+  const taxRatePercent = invoice.tax_rate_bps / 100;
+  const balanceCents = Number(invoice.total_cents) - Number(invoice.amount_paid_cents);
 
   return (
     <div className="space-y-6 p-8">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{estimate.title}</h1>
-            <Badge variant={STATUS_VARIANT[estimate.status] ?? "secondary"}>{estimate.status}</Badge>
+            <h1 className="text-2xl font-semibold tracking-tight">{invoice.title}</h1>
+            <Badge variant={STATUS_VARIANT[invoice.status] ?? "secondary"}>{invoice.status}</Badge>
           </div>
           <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-            {estimate.estimate_number} · created {formatDate(estimate.created_at)}
+            {invoice.invoice_number} · created {formatDate(invoice.created_at)}
+            {invoice.source_estimate_id ? (
+              <>
+                {" · "}
+                <Link
+                  href={`/app/estimating/${invoice.source_estimate_id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  from estimate
+                </Link>
+              </>
+            ) : null}
           </p>
         </div>
         <div className="flex gap-2">
-          {estimate.status === "accepted" ? (
-            <form
-              action={async (formData: FormData) => {
-                "use server";
-                const r = await convertEstimateToInvoice(formData);
-                if (!r.ok) throw new Error(r.error);
-                const { redirect } = await import("next/navigation");
-                redirect(`/app/invoicing/${r.data.invoice_id}`);
-              }}
-            >
-              <input type="hidden" name="estimate_id" value={estimate.id} />
-              <Button type="submit">Convert to invoice</Button>
-            </form>
-          ) : null}
-          <form action={downloadEstimatePdf}>
-            <input type="hidden" name="estimate_id" value={estimate.id} />
+          <form action={downloadInvoicePdf}>
+            <input type="hidden" name="invoice_id" value={invoice.id} />
             <Button type="submit" variant="outline">
               Download PDF
             </Button>
           </form>
           <Button variant="ghost" asChild>
-            <Link href="/app/estimating">Back</Link>
+            <Link href="/app/invoicing">Back</Link>
           </Button>
         </div>
       </div>
@@ -188,9 +182,9 @@ export default async function EstimateDetailPage({
                             {fmtMoney(Number(li.total_cents))}
                           </td>
                           <td className="py-2 text-right">
-                            <form action={deleteLineItem} className="inline">
+                            <form action={deleteInvoiceLineItem} className="inline">
                               <input type="hidden" name="line_item_id" value={li.id} />
-                              <input type="hidden" name="estimate_id" value={estimate.id} />
+                              <input type="hidden" name="invoice_id" value={invoice.id} />
                               <Button type="submit" variant="ghost" size="sm">
                                 Remove
                               </Button>
@@ -203,43 +197,8 @@ export default async function EstimateDetailPage({
                 </div>
               )}
 
-              {catalogItems.length > 0 ? (
-                <form
-                  action={addLineItemFromCatalogForm}
-                  className="grid grid-cols-12 gap-2 border-t border-[var(--color-border)]/60 pt-3"
-                >
-                  <input type="hidden" name="estimate_id" value={estimate.id} />
-                  <select
-                    name="catalog_item_id"
-                    required
-                    className="col-span-7 rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
-                  >
-                    <option value="">Add from catalog…</option>
-                    {catalogItems.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.category ? `[${c.category}] ` : ""}
-                        {c.name} ({c.unit}, ${(Number(c.default_price_cents) / 100).toFixed(2)})
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    name="quantity"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    defaultValue="1"
-                    placeholder="Qty"
-                    className="col-span-3 rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
-                  />
-                  <Button type="submit" className="col-span-2" size="sm" variant="outline">
-                    Add from catalog
-                  </Button>
-                </form>
-              ) : null}
-
               <form action={addLineItemForm} className="grid grid-cols-12 gap-2 pt-3">
-                <input type="hidden" name="estimate_id" value={estimate.id} />
+                <input type="hidden" name="invoice_id" value={invoice.id} />
                 <input
                   name="description"
                   required
@@ -279,11 +238,11 @@ export default async function EstimateDetailPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Estimate details</CardTitle>
+              <CardTitle className="text-base">Invoice details</CardTitle>
             </CardHeader>
             <CardContent>
-              <form action={updateEstimateForm} className="space-y-3">
-                <input type="hidden" name="estimate_id" value={estimate.id} />
+              <form action={updateInvoiceForm} className="space-y-3">
+                <input type="hidden" name="invoice_id" value={invoice.id} />
                 <div>
                   <label className="block text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
                     Title
@@ -291,7 +250,7 @@ export default async function EstimateDetailPage({
                   <input
                     name="title"
                     required
-                    defaultValue={estimate.title}
+                    defaultValue={invoice.title}
                     className="mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
                   />
                 </div>
@@ -302,10 +261,10 @@ export default async function EstimateDetailPage({
                     </label>
                     <select
                       name="company_id"
-                      defaultValue={estimate.company_id ?? ""}
+                      defaultValue={invoice.company_id ?? ""}
                       className="mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
                     >
-                      <option value="">— No customer linked —</option>
+                      <option value="">— None —</option>
                       {(companies ?? []).map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
@@ -315,29 +274,29 @@ export default async function EstimateDetailPage({
                   </div>
                   <div>
                     <label className="block text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
-                      Valid until
+                      Due date
                     </label>
                     <input
-                      name="valid_until"
                       type="date"
-                      defaultValue={estimate.valid_until ?? ""}
+                      name="due_date"
+                      defaultValue={invoice.due_date ?? ""}
                       className="mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
                     />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
-                    Tax rate (%)
-                  </label>
-                  <input
-                    name="tax_rate_percent"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    defaultValue={taxRatePercent}
-                    className="mt-1 w-32 rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
-                  />
+                  <div>
+                    <label className="block text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
+                      Tax rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0"
+                      max="100"
+                      name="tax_rate_percent"
+                      defaultValue={taxRatePercent}
+                      className="mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
@@ -346,7 +305,7 @@ export default async function EstimateDetailPage({
                   <textarea
                     name="notes"
                     rows={3}
-                    defaultValue={estimate.notes ?? ""}
+                    defaultValue={invoice.notes ?? ""}
                     className="mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
                   />
                 </div>
@@ -357,12 +316,14 @@ export default async function EstimateDetailPage({
                   <textarea
                     name="terms"
                     rows={2}
-                    defaultValue={estimate.terms ?? ""}
+                    defaultValue={invoice.terms ?? ""}
                     className="mt-1 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
                   />
                 </div>
-                <div className="flex justify-end">
-                  <Button type="submit">Save changes</Button>
+                <div className="pt-2">
+                  <Button type="submit" size="sm">
+                    Save changes
+                  </Button>
                 </div>
               </form>
             </CardContent>
@@ -375,14 +336,27 @@ export default async function EstimateDetailPage({
               <CardTitle className="text-base">Totals</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <Row label="Subtotal" value={fmtMoney(estimate.subtotal_cents)} />
-              <Row
-                label={`Tax (${taxRatePercent.toFixed(2).replace(/\.?0+$/, "")}%)`}
-                value={fmtMoney(estimate.tax_cents)}
-              />
-              <div className="mt-2 flex items-center justify-between border-t border-[var(--color-border)] pt-2 text-base font-semibold">
+              <div className="flex justify-between">
+                <span className="text-[var(--color-muted-foreground)]">Subtotal</span>
+                <span>{fmtMoney(Number(invoice.subtotal_cents))}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--color-muted-foreground)]">
+                  Tax ({taxRatePercent}%)
+                </span>
+                <span>{fmtMoney(Number(invoice.tax_cents))}</span>
+              </div>
+              <div className="flex justify-between border-t border-[var(--color-border)] pt-2 font-medium">
                 <span>Total</span>
-                <span>{fmtMoney(estimate.total_cents)}</span>
+                <span>{fmtMoney(Number(invoice.total_cents))}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--color-muted-foreground)]">Paid</span>
+                <span>{fmtMoney(Number(invoice.amount_paid_cents))}</span>
+              </div>
+              <div className="flex justify-between font-medium">
+                <span>Balance</span>
+                <span>{fmtMoney(balanceCents)}</span>
               </div>
             </CardContent>
           </Card>
@@ -392,58 +366,68 @@ export default async function EstimateDetailPage({
               <CardTitle className="text-base">Status</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <StatusButtons estimateId={estimate.id} current={estimate.status} />
+              {(["draft", "sent", "overdue", "void"] as const).map((s) => (
+                <form key={s} action={setInvoiceStatusForm} className="block">
+                  <input type="hidden" name="invoice_id" value={invoice.id} />
+                  <input type="hidden" name="status" value={s} />
+                  <Button
+                    type="submit"
+                    variant={invoice.status === s ? "default" : "outline"}
+                    size="sm"
+                    className="w-full justify-start"
+                  >
+                    Mark as {s}
+                  </Button>
+                </form>
+              ))}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Danger zone</CardTitle>
+              <CardTitle className="text-base">Record payment</CardTitle>
             </CardHeader>
             <CardContent>
-              <form action={deleteEstimate}>
-                <input type="hidden" name="estimate_id" value={estimate.id} />
-                <Button type="submit" variant="destructive" size="sm">
-                  Delete estimate
+              {balanceCents <= 0 ? (
+                <p className="text-sm text-[var(--color-muted-foreground)]">
+                  This invoice is fully paid.
+                </p>
+              ) : (
+                <form action={recordPaymentForm} className="space-y-2">
+                  <input type="hidden" name="invoice_id" value={invoice.id} />
+                  <label className="block text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
+                    Amount (max {fmtMoney(balanceCents)})
+                  </label>
+                  <input
+                    name="amount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={(balanceCents / 100).toFixed(2)}
+                    required
+                    placeholder="0.00"
+                    className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+                  />
+                  <Button type="submit" size="sm" className="w-full">
+                    Record payment
+                  </Button>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <form action={deleteInvoice}>
+                <input type="hidden" name="invoice_id" value={invoice.id} />
+                <Button type="submit" variant="ghost" size="sm" className="w-full text-red-600">
+                  Delete invoice
                 </Button>
               </form>
             </CardContent>
           </Card>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-[var(--color-muted-foreground)]">{label}</span>
-      <span>{value}</span>
-    </div>
-  );
-}
-
-function StatusButtons({ estimateId, current }: { estimateId: string; current: string }) {
-  const transitions: Array<{ to: string; label: string; show: boolean }> = [
-    { to: "sent", label: "Mark as sent", show: current === "draft" },
-    { to: "accepted", label: "Mark accepted", show: current === "sent" },
-    { to: "declined", label: "Mark declined", show: current === "sent" },
-    { to: "draft", label: "Reopen as draft", show: current !== "draft" },
-  ];
-  return (
-    <div className="flex flex-col gap-2">
-      {transitions
-        .filter((t) => t.show)
-        .map((t) => (
-          <form key={t.to} action={setEstimateStatusForm}>
-            <input type="hidden" name="estimate_id" value={estimateId} />
-            <input type="hidden" name="status" value={t.to} />
-            <Button type="submit" variant="outline" size="sm" className="w-full">
-              {t.label}
-            </Button>
-          </form>
-        ))}
     </div>
   );
 }
