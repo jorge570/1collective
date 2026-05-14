@@ -9,6 +9,7 @@ import {
   ListChecks,
   BookOpen,
   Folders,
+  UsersRound,
   LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ const ICON = "h-4 w-4";
 const NAV: NavItem[] = [
   { label: "Overview", href: "/admin", icon: <LayoutDashboard className={ICON} /> },
   { label: "Tenants", href: "/admin/tenants", icon: <Building2 className={ICON} /> },
+  { label: "Employees", href: "/admin/employees", icon: <UsersRound className={ICON} /> },
   { label: "Invite links", href: "/admin/invite-links", icon: <TicketIcon className={ICON} /> },
   { label: "Contract checklist", href: "/admin/checklist", icon: <ListChecks className={ICON} /> },
   { label: "Clause library", href: "/admin/clauses", icon: <BookOpen className={ICON} /> },
