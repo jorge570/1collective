@@ -46,7 +46,8 @@ hardening. **Migrations 0011-0014 not yet applied to live Supabase**
 |---|---|---|---|
 | `integrations_oauth` | ✅ | new | Encrypted token store |
 | `vault` | ✅ | new | RLS + signed URLs, IDOR-hardened |
-| `estimating` | ✅ partial | cc | Builder + line items + branded PDF; catalog UI + e-sign pending |
+| `estimating` | ✅ partial | cc | Builder + line items + branded PDF + catalog + e-sign (Phase 4); accepted→invoice handoff live |
+| `e_signature` | ✅ live | cc | Token-based public sign page at `/sign/[token]` with SVG signature capture; accept flips estimate to accepted, declined recorded; email/SMS delivery best-effort and degrades cleanly when credentials are blank |
 | `crm` | ✅ shell | merge | Schema + page shell; detail views pending |
 | `ai_core`, `ai_phone_daniella`, `ai_phone_serana`, `social_amber`, `booking`, `google_sync`, `quickbooks_sync`, `invoicing`, `projects`, `manpower` | ❌ | — | Page shells only |
 

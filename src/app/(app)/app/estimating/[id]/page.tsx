@@ -20,6 +20,23 @@ import {
   updateEstimate,
 } from "@/lib/estimating/actions";
 import { addLineItemFromCatalog } from "@/lib/estimating/catalog-actions";
+import {
+  requestEstimateSignature,
+  voidSignatureRequest,
+} from "@/lib/signatures/actions";
+import { deliveryStatus } from "@/lib/signatures/delivery";
+
+async function requestSignatureForm(formData: FormData): Promise<void> {
+  "use server";
+  const r = await requestEstimateSignature(formData);
+  if (!r.ok) throw new Error(r.error);
+}
+
+async function voidSignatureForm(formData: FormData): Promise<void> {
+  "use server";
+  const r = await voidSignatureRequest(formData);
+  if (!r.ok) throw new Error(r.error);
+}
 
 async function addLineItemForm(formData: FormData): Promise<void> {
   "use server";
@@ -87,7 +104,12 @@ export default async function EstimateDetailPage({
 
   if (!estimate) notFound();
 
-  const [{ data: items }, { data: companies }, { data: catalog }] = await Promise.all([
+  const [
+    { data: items },
+    { data: companies },
+    { data: catalog },
+    { data: latestSig },
+  ] = await Promise.all([
     admin
       .from("cc_estimate_line_items")
       .select("id, position, description, quantity, unit, unit_price_cents, total_cents")
@@ -106,11 +128,22 @@ export default async function EstimateDetailPage({
       .eq("tenant_id", session.tenantId)
       .eq("is_active", true)
       .order("name", { ascending: true }),
+    admin
+      .from("cc_signature_requests")
+      .select("id, token, status, signer_email, signer_phone, sent_at, signed_at, signed_by_name, declined_at, voided_at, expires_at")
+      .eq("tenant_id", session.tenantId)
+      .eq("target_type", "estimate")
+      .eq("target_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const lineItems = items ?? [];
   const catalogItems = catalog ?? [];
   const taxRatePercent = estimate.tax_rate_bps / 100;
+  const sig = latestSig;
+  const delivery = deliveryStatus();
 
   return (
     <div className="space-y-6 p-8">
@@ -398,6 +431,20 @@ export default async function EstimateDetailPage({
 
           <Card>
             <CardHeader>
+              <CardTitle className="text-base">Signature</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <SignaturePanel
+                estimateId={estimate.id}
+                estimateStatus={estimate.status}
+                sig={sig}
+                delivery={delivery}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Danger zone</CardTitle>
             </CardHeader>
             <CardContent>
@@ -421,6 +468,117 @@ function Row({ label, value }: { label: string; value: string }) {
       <span className="text-[var(--color-muted-foreground)]">{label}</span>
       <span>{value}</span>
     </div>
+  );
+}
+
+type SignatureRow = {
+  id: string;
+  token: string;
+  status: "pending" | "signed" | "declined" | "voided" | "expired";
+  signer_email: string | null;
+  signer_phone: string | null;
+  sent_at: string;
+  signed_at: string | null;
+  signed_by_name: string | null;
+  declined_at: string | null;
+  voided_at: string | null;
+  expires_at: string | null;
+};
+
+function SignaturePanel({
+  estimateId,
+  estimateStatus,
+  sig,
+  delivery,
+}: {
+  estimateId: string;
+  estimateStatus: string;
+  sig: SignatureRow | null;
+  delivery: { emailReady: boolean; smsReady: boolean };
+}) {
+  const inactive = estimateStatus === "accepted" || estimateStatus === "declined" || estimateStatus === "expired";
+  const pending = sig && sig.status === "pending";
+
+  if (pending) {
+    const link = `/sign/${sig.token}`;
+    return (
+      <div className="space-y-3">
+        <div>
+          <Badge variant="default">Awaiting signature</Badge>
+          <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">
+            Sent {formatDate(sig.sent_at)}
+            {sig.signer_email ? ` to ${sig.signer_email}` : ""}
+            {sig.signer_phone ? ` · ${sig.signer_phone}` : ""}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">Signing link</p>
+          <a href={link} target="_blank" rel="noreferrer" className="break-all text-xs text-blue-600 hover:underline">
+            {link}
+          </a>
+        </div>
+        <form action={voidSignatureForm}>
+          <input type="hidden" name="signature_id" value={sig.id} />
+          <Button type="submit" variant="outline" size="sm" className="w-full">
+            Void request
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
+  if (sig && sig.status === "signed") {
+    return (
+      <div className="space-y-2">
+        <Badge variant="default">Signed</Badge>
+        <p className="text-xs text-[var(--color-muted-foreground)]">
+          Signed {sig.signed_at ? formatDate(sig.signed_at) : ""}
+          {sig.signed_by_name ? ` by ${sig.signed_by_name}` : ""}.
+        </p>
+      </div>
+    );
+  }
+
+  if (inactive) {
+    return (
+      <p className="text-xs text-[var(--color-muted-foreground)]">
+        Estimate is {estimateStatus}. Reopen to draft to send a new signature request.
+      </p>
+    );
+  }
+
+  return (
+    <form action={requestSignatureForm} className="space-y-2">
+      <input type="hidden" name="estimate_id" value={estimateId} />
+      <input
+        name="signer_email"
+        type="email"
+        placeholder="Customer email (optional)"
+        className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+      />
+      <input
+        name="signer_phone"
+        type="tel"
+        placeholder="Customer phone (optional, E.164)"
+        className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 text-sm"
+      />
+      <Button type="submit" size="sm" className="w-full">
+        Send for signature
+      </Button>
+      {!delivery.emailReady && !delivery.smsReady ? (
+        <p className="text-xs text-[var(--color-muted-foreground)]">
+          Email and SMS delivery are not configured. The signing link will still be created and visible here for manual sharing.
+        </p>
+      ) : !delivery.emailReady ? (
+        <p className="text-xs text-[var(--color-muted-foreground)]">
+          Email delivery not configured — only SMS will be sent automatically.
+        </p>
+      ) : !delivery.smsReady ? (
+        <p className="text-xs text-[var(--color-muted-foreground)]">
+          SMS delivery not configured — only email will be sent automatically.
+        </p>
+      ) : null}
+    </form>
   );
 }
 

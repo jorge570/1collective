@@ -19,6 +19,7 @@ export type FoundationalModuleKey =
   | "projects"
   | "manpower"
   | "estimating"
+  | "e_signature"
   | "crm";
 
 export interface FoundationalModule {
@@ -156,6 +157,14 @@ export const FOUNDATIONAL_MODULES: Record<FoundationalModuleKey, FoundationalMod
     source: "cc",
     requiredCredentials: [],
     notes: "Per-tenant invoice numbering (INV-YYYY-NNNN), line items with tax, payment recording (manual today; Stripe wires up in Phase 3.2), branded PDF, convert from accepted estimate.",
+  },
+  e_signature: {
+    key: "e_signature",
+    name: "E-signature",
+    enabled: true,
+    source: "cc",
+    requiredCredentials: [],
+    notes: "Public token-based signing for estimates (and later change orders). Email/SMS delivery is best-effort and degrades gracefully when Resend/Twilio credentials are blank — the link is always returned to the sender for manual delivery.",
   },
   crm: {
     key: "crm",
