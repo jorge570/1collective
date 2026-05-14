@@ -32,6 +32,19 @@ Last audited: 2026-05-14 (commit `0893a31`).
 - Currently falls back to `https://1-collective.replit.app` in `src/app/forgot-password/actions.ts` and `src/app/(app)/app/settings/account/actions.ts`.
 - If the real prod URL differs, password-reset and email-change confirmation links will be broken.
 
+### C5. Audit sign-in / sign-up for bypasses before publish
+- Confirm there is **no way to reach `/app/*`, `/admin/*`, or `/onboarding/*` without a valid Supabase session**. Currently enforced in two layers (`src/proxy.ts` middleware + per-layout `requireTenantUser()` checks) — verify both still hold after every auth-related change.
+- Walk every public path in `src/proxy.ts:PUBLIC_PATHS` and confirm it cannot be turned into an authentication bypass:
+  - `/`, `/login`, `/admin/login` — render only
+  - `/signup`, `/signup/[token]` — create accounts but require email + password
+  - `/forgot-password`, `/reset-password` — issue / consume Supabase reset tokens; verify the password-reset session expires correctly and cannot be exchanged for a long-lived session without setting a new password
+  - `/auth/callback` — exchanges Supabase code → session; verify the open-redirect guard on `next` still rejects external URLs
+- Confirm `signupViaInviteAction` correctly enforces invite-link `expires_at`, `disabled_at`, and `max_redemptions` (currently does — keep covered after refactor).
+- Decide and lock down: is public self-service signup at `/signup` allowed in prod, or invite-only? If invite-only, remove the `/signup` route + the "Create a workspace" link in `/login`.
+- **Delete the dev seed account before publish.** `scripts/seed-dev-account.mjs` provisions `dev@1collective.local / DevPassword123!` against whatever Supabase the script targets. Either delete the user from the prod project, or rotate the password to a value not stored in source. The script itself is harmless to keep around (requires `SUPABASE_SERVICE_ROLE_KEY` to run).
+- Confirm Supabase email-confirmation requirement matches policy: `signupAction` and `signupViaInviteAction` both auto-confirm with `email_confirm: true`. If you want to require email verification on public signup before granting access, flip that flag and add a verification gate.
+- Verify Supabase Auth provider settings in the prod project: password minimum length, leaked-password protection, allowed redirect URLs (must include `${NEXT_PUBLIC_APP_URL}/auth/callback`).
+
 ---
 
 ## HIGH — placeholder modules visible in product
