@@ -15,12 +15,14 @@ export type SessionContext =
       roleKeys: string[];
       isFieldRole: boolean;
       onboardingComplete: boolean;
+      passwordResetRequired: boolean;
     }
   | {
       kind: "platform_operator";
       userId: string;
       email: string;
       operatorRole: string;
+      passwordResetRequired: boolean;
     };
 
 export const getSession = cache(async (): Promise<SessionContext> => {
@@ -34,7 +36,7 @@ export const getSession = cache(async (): Promise<SessionContext> => {
 
   const { data: operator } = await admin
     .from("platform_operators")
-    .select("id, email, operator_role")
+    .select("id, email, operator_role, password_reset_required")
     .eq("id", authUser.id)
     .maybeSingle();
 
@@ -44,12 +46,13 @@ export const getSession = cache(async (): Promise<SessionContext> => {
       userId: operator.id,
       email: operator.email,
       operatorRole: operator.operator_role,
+      passwordResetRequired: !!operator.password_reset_required,
     };
   }
 
   const { data: profile } = await admin
     .from("users")
-    .select("id, email, tenant_id")
+    .select("id, email, tenant_id, password_reset_required")
     .eq("id", authUser.id)
     .maybeSingle();
 
@@ -99,6 +102,7 @@ export const getSession = cache(async (): Promise<SessionContext> => {
     roleKeys,
     isFieldRole,
     onboardingComplete: !!onboarding?.completed_at,
+    passwordResetRequired: !!profile.password_reset_required,
   };
 });
 

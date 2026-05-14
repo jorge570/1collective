@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { Sidebar, type NavItem } from "@/components/app-shell/sidebar";
 import {
@@ -33,6 +34,7 @@ export default async function AdminLayout({
   if (session.kind !== "platform_operator") {
     return <>{children}</>;
   }
+  if (session.passwordResetRequired) redirect("/set-password");
 
   return (
     <div className="flex min-h-screen">

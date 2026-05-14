@@ -49,6 +49,7 @@ export default async function AppLayout({
   const session = await getSession();
   if (session.kind === "anonymous") redirect("/login");
   if (session.kind === "platform_operator") redirect("/admin");
+  if (session.passwordResetRequired) redirect("/set-password");
   if (!session.onboardingComplete && session.tenantStatus === "onboarding") {
     redirect("/onboarding");
   }
